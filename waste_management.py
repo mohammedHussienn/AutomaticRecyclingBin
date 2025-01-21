@@ -1,5 +1,4 @@
-from typing import List, Any, TypedDict, Optional, Literal
-
+from typing import TypedDict
 
 #State class
 class State(TypedDict):
@@ -18,9 +17,25 @@ class Readings:
         pass
 
     def get_inductive_reading(self):
-        #insert inductive reading code here
-        #return state with inductive reading
-        pass
+        try:
+            # Initialize serial if not already done
+            import serial
+            ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
+            
+            # Request reading from Arduino
+            ser.write(b'R')
+            ser.flush()
+            
+            # Read response
+            response = ser.readline().decode('utf-8').strip()
+            
+            # Update state
+            self.state['inductive_reading'] = bool(int(response))
+            
+            return self.state
+        except Exception as e:
+            print(f"Error reading inductive sensor: {e}")
+            return self.state
 
     def get_camera_prediction(self):
         #insert camera prediction code here
@@ -38,9 +53,51 @@ class Algorithm:
         pass
 
     def send_to_arduino(self):
-        #insert arduino sending code here
-        pass
+        try:
+            # Initialize serial if not already done
+            import serial
+            ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
+            
+            # Send prediction to Arduino
+            if self.state['final_prediction']:
+                ser.write(f"{self.state['final_prediction']}\n".encode())
+                ser.flush()
+        except Exception as e:
+            print(f"Error sending to Arduino: {e}")
 
 
 if __name__ == "__main__":
-    state = State()
+    # Initialize state with default values
+    state = State(
+        camera_on=False,
+        camera_probability={},
+        inductive_reading=False,
+        final_prediction=""
+    )
+    
+    import serial
+    import time
+    
+    try:
+        ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
+        readings = Readings(state)
+        algorithm = Algorithm(state)
+        
+        while True:
+            if ser.in_waiting:
+                message = ser.readline().decode('utf-8').strip()
+                if message == "START":
+                    # Motion detected, start the process
+                    state = readings.open_camera()
+                    state = readings.get_inductive_reading()
+                    state = readings.get_camera_prediction()
+                    state = algorithm.calculate_final_prediction()
+                    algorithm.send_to_arduino()
+            
+            time.sleep(0.1)  # Small delay to prevent CPU overuse
+            
+    except Exception as e:
+        print(f"Error in main loop: {e}")
+    finally:
+        if 'ser' in locals():
+            ser.close()
