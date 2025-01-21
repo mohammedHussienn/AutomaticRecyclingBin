@@ -138,13 +138,16 @@ class Algorithm:
 
 if __name__ == "__main__":
     # Initialize state with default values
+
+    classes = ["cardboard", "e-waste", "glass", "medical", "metal", "paper", "plastic"]
+    camera_probability = {cls: 0.0 for cls in classes}
+    
     state = State(
         camera_on=False,
-        camera_probability={},
+        camera_probability=camera_probability,
         inductive_reading=False,
         final_prediction=""
     )
-    
     import serial
     import time
     
@@ -171,12 +174,3 @@ if __name__ == "__main__":
     finally:
         if 'ser' in locals():
             ser.close()
-    classes = ["cardboard", "e-waste", "glass", "medical", "metal", "paper", "plastic"]
-    camera_probability = {cls: 0.0 for cls in classes}
-    
-    state = State(
-        camera_on=False,
-        camera_probability=camera_probability,
-        inductive_reading=False,
-        final_prediction=""
-    )
